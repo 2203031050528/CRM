@@ -1,4 +1,6 @@
-import { CONTACT_STATUSES, CONTACT_SOURCES, DEAL_STAGES, TASK_PRIORITIES } from "@/lib/constants";
+import { STATUSES, STATUS_LABELS, CONTACT_SOURCES, TASK_PRIORITIES } from "@/lib/constants";
+
+const statusOptions = STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] }));
 
 // Field sets shared between list and detail pages. Admins get an owner picker.
 const ownerField = (users) =>
@@ -15,7 +17,7 @@ export const contactFields = (users) => [
   { name: "phone", label: "Phone" },
   { name: "company", label: "Company" },
   { name: "job_title", label: "Job title" },
-  { name: "status", label: "Status", type: "select", options: CONTACT_STATUSES, default: "lead" },
+  { name: "status", label: "Status", type: "select", options: statusOptions, default: "new" },
   { name: "source", label: "Source", type: "select", options: CONTACT_SOURCES, placeholder: "— Select —" },
   ...ownerField(users),
   { name: "address", label: "Address", type: "textarea", full: true },
@@ -24,7 +26,7 @@ export const contactFields = (users) => [
 export const dealFields = (contacts, users) => [
   { name: "title", label: "Deal title", required: true, full: true },
   { name: "value", label: "Value (USD)", type: "number", min: 0, step: "0.01", default: "0" },
-  { name: "stage", label: "Stage", type: "select", options: DEAL_STAGES, default: "new" },
+  { name: "stage", label: "Stage", type: "select", options: statusOptions, default: "new" },
   { name: "expected_close", label: "Expected close", type: "date" },
   contactOptions(contacts),
   ...ownerField(users),

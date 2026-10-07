@@ -1,13 +1,14 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { api, money, fmtDate } from "@/lib/client";
-import { DEAL_STAGES } from "@/lib/constants";
+import { api, money, shortDate, today } from "@/lib/client";
+import { STATUSES, STATUS_LABELS } from "@/lib/constants";
 import { useUser } from "@/app/components/UserContext";
 import { useOptions } from "@/app/components/useOptions";
 import { dealFields, toForm } from "@/app/components/forms";
 import Modal from "@/app/components/Modal";
 import EntityForm from "@/app/components/EntityForm";
+import Icon from "@/app/components/Icon";
 
 export default function DealsPage() {
   const user = useUser();
@@ -54,69 +55,76 @@ export default function DealsPage() {
   }
 
   const open = (deals || []).filter((d) => !["won", "lost"].includes(d.stage));
+  const now = today();
 
   return (
-    <>
+    <div className="content wide">
       <div className="page-head">
         <div>
           <h1>Deals pipeline</h1>
-          <p>{open.length} open deals worth {money(open.reduce((n, d) => n + d.value, 0))}. Drag cards between stages.</p>
+          <p>{open.length} open {open.length === 1 ? "deal" : "deals"} worth {money(open.reduce((n, d) => n + d.value, 0))}. Drag a card to move it to another stage.</p>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div className="actions">
           {isAdmin && (
-            <select value={owner} onChange={(e) => setOwner(e.target.value)} style={{ width: "auto" }}>
+            <select aria-label="Owner" value={owner} onChange={(e) => setOwner(e.target.value)} style={{ width: "auto" }}>
               <option value="">All owners</option>
               {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           )}
-          <button className="btn" onClick={() => setModal("new")}>+ New deal</button>
+          <button className="btn" onClick={() => setModal("new")}><Icon name="plus" />Add deal</button>
         </div>
       </div>
-      {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
+      {error && <div className="banner error">{error}</div>}
 
-      {!deals ? <div className="muted">Loading...</div> : (
-        <div className="board">
-          {DEAL_STAGES.map((stage) => {
-            const items = deals.filter((d) => d.stage === stage);
-            return (
-              <div key={stage} className={`column ${over === stage ? "over" : ""}`}
-                onDragOver={(e) => { e.preventDefault(); setOver(stage); }}
-                onDragLeave={() => setOver(null)}
-                onDrop={() => moveTo(stage)}>
-                <div className="column-head">
-                  <strong>{stage} <span className="muted">({items.length})</span></strong>
-                  <span className="muted">{money(items.reduce((n, d) => n + d.value, 0))}</span>
-                </div>
-                {items.map((d) => (
-                  <div key={d.id} className="deal-card" draggable onDragStart={() => setDragId(d.id)} onClick={() => setModal(d)}>
-                    <div className="title">{d.title}</div>
-                    <div className="value">{money(d.value)}</div>
-                    <div className="meta">
-                      <span>{d.contact_name || "No contact"}</span>
-                      <span>{fmtDate(d.expected_close)}</span>
-                    </div>
-                    {isAdmin && <div className="meta"><span>Owner: {d.owner_name}</span></div>}
-                  </div>
-                ))}
-              </div>
-            );
-          })}
+      {!deals ? <p className="muted">Loading...</p> : (
+        <div className="board-scroll">
+          <div className="board">
+            {STATUSES.map((stage) => {
+              const items = deals.filter((d) => d.stage === stage);
+              return (
+                <section key={stage} className={`column ${over === stage ? "over" : ""}`} aria-label={STATUS_LABELS[stage]}
+                  onDragOver={(e) => { e.preventDefault(); setOver(stage); }}
+                  onDragLeave={() => setOver(null)}
+                  onDrop={() => moveTo(stage)}>
+                  <header className="column-head">
+                    <div className="t"><i style={{ background: `var(--status-${stage})` }} />{STATUS_LABELS[stage]}<span className="caption num">{items.length}</span></div>
+                    <div className="total">{money(items.reduce((n, d) => n + d.value, 0))}</div>
+                  </header>
+                  {items.map((d) => {
+                    const late = d.expected_close && d.expected_close < now && !["won", "lost"].includes(d.stage);
+                    return (
+                      <button key={d.id} className="deal-card" draggable onDragStart={() => setDragId(d.id)} onClick={() => setModal(d)}>
+                        <span className="title">{d.title}</span>
+                        <span className="value">{money(d.value)}</span>
+                        <span className="meta">
+                          <span>{d.contact_name || "No contact"}</span>
+                          <span className={`num ${late ? "t-danger" : "t-muted"}`}>{shortDate(d.expected_close)}</span>
+                        </span>
+                        {isAdmin && <span className="meta"><span>{d.owner_name}</span></span>}
+                      </button>
+                    );
+                  })}
+                  {items.length === 0 && <p className="small muted" style={{ textAlign: "center", padding: "16px 0" }}>No deals</p>}
+                </section>
+              );
+            })}
+          </div>
         </div>
       )}
 
       {modal && (
-        <Modal title={modal === "new" ? "New deal" : "Edit deal"} onClose={() => setModal(null)}>
+        <Modal title={modal === "new" ? "Add deal" : "Edit deal"} onClose={() => setModal(null)}>
           <EntityForm fields={dealFields(contacts, users)}
             initial={modal === "new" ? { owner_id: String(user.id) } : toForm(modal)}
-            onSubmit={save} onCancel={() => setModal(null)} submitLabel={modal === "new" ? "Create deal" : "Save"} />
+            onSubmit={save} onCancel={() => setModal(null)} submitLabel={modal === "new" ? "Create deal" : "Save changes"} />
           {modal !== "new" && (
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
-              {modal.contact_id ? <Link href={`/contacts/${modal.contact_id}`}>Open contact →</Link> : <span />}
-              <button className="link-btn danger" onClick={remove}>Delete deal</button>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16 }}>
+              {modal.contact_id ? <Link href={`/contacts/${modal.contact_id}`} className="small">Open contact</Link> : <span />}
+              <button className="link-btn danger small" onClick={remove}>Delete deal</button>
             </div>
           )}
         </Modal>
       )}
-    </>
+    </div>
   );
 }

@@ -2,42 +2,51 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "./UserContext";
+import Icon from "./Icon";
 
-const LINKS = [
-  { href: "/", label: "Dashboard", icon: "▦" },
-  { href: "/contacts", label: "Contacts", icon: "☺" },
-  { href: "/deals", label: "Deals", icon: "$" },
-  { href: "/tasks", label: "Tasks", icon: "✓" },
+const WORKSPACE = [
+  { href: "/", label: "Dashboard", icon: "dashboard" },
+  { href: "/contacts", label: "Contacts", icon: "users" },
+  { href: "/deals", label: "Deals", icon: "pipeline" },
+  { href: "/tasks", label: "Tasks", icon: "check-circle" },
 ];
+
+export function Brand() {
+  return (
+    <div className="brand">
+      <span className="brand-mark"><Icon name="pipeline" size={16} /></span>
+      Simple CRM
+    </div>
+  );
+}
 
 export default function Sidebar() {
   const user = useUser();
   const path = usePathname();
-  const active = (href) => (href === "/" ? path === "/" : path.startsWith(href));
+  const isActive = (href) => (href === "/" ? path === "/" : path.startsWith(href));
   const link = (l) => (
-    <Link key={l.href} href={l.href} className={`nav-link ${active(l.href) ? "active" : ""}`}>
-      <span>{l.icon}</span>{l.label}
+    <Link key={l.href} href={l.href} className={`nav-link ${isActive(l.href) ? "active" : ""}`}
+      aria-current={isActive(l.href) ? "page" : undefined}>
+      <Icon name={l.icon} size={18} />{l.label}
     </Link>
   );
 
   return (
-    <aside className="sidebar">
-      <div className="brand"><span className="brand-mark">C</span>Simple CRM</div>
+    <nav className="sidebar" aria-label="Main">
+      <Brand />
       <div className="nav-section">Workspace</div>
-      {LINKS.map(link)}
+      {WORKSPACE.map(link)}
       {user.role === "admin" && (
         <>
           <div className="nav-section">Admin</div>
-          {link({ href: "/admin/users", label: "Users", icon: "⚙" })}
+          {link({ href: "/admin/users", label: "Users", icon: "shield" })}
         </>
       )}
       <div className="nav-section">Account</div>
-      {link({ href: "/profile", label: "Profile", icon: "◉" })}
+      {link({ href: "/profile", label: "Profile", icon: "user" })}
       <div className="side-foot">
-        <div className="who">{user.name} <span className={`badge b-${user.role}`}>{user.role}</span></div>
-        <div className="email">{user.email}</div>
-        <a href="/api/auth/logout" className="btn ghost sm">Log out</a>
+        <a href="/api/auth/logout" className="nav-link"><Icon name="logout" size={18} />Sign out</a>
       </div>
-    </aside>
+    </nav>
   );
 }
